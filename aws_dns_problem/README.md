@@ -31,6 +31,13 @@ VPC 설정 중을 아래와 같이 하여, AWS provided DNS가 동작하게 하�
 enable_dns_support   = true
 enable_dns_hostnames = true
 ```
+[enableDnsSupport](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-dns.html)
+
+>> Indicates whether the DNS resolution is supported for the VPC. If this attribute is false, the Amazon-provided DNS server in the VPC that resolves public DNS hostnames to IP addresses is not enabled.
+
+[enableDnsHostnames](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-dns.html#vpc-dns-support)
+
+>> Indicates whether the instances launched in the VPC get public DNS hostnames.
 
 EC2의 Private DNS 이외에도 Public DNS가 생기는 것을 볼 수 있다.
 Public DNS를 Google Public DNS로 query하면 Public IP가 return되는 것을 확인 할 수 있다.
@@ -57,16 +64,14 @@ $ terraform init
 $ terraform apply -var-file="test2.tfvars"
 ```
 
-VPC 설정 중을 아래와 같이 하여, AWS provided DNS가 동작하게 하고 Public DNS hostname을 가지도록 하였다. 
+VPC 설정 중을 아래와 같이 하여, AWS provided DNS 사용을 disable했다. 
 
 ```
 enable_dns_support   = false
 enable_dns_hostnames = false
 ```
 
-[enableDnsSupport](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-dns.html)
 
->> If this attribute is false, the Amazon-provided DNS server in the VPC that resolves public DNS hostnames to IP addresses is not enabled.
 
 enable_dns_hostname을 false로 설정했기 때문에 Amazon provided DNS가 DNS hostname을 resolve하지 못한다.
 test1에서 처럼 EC2 instance에 들어가서 `nslookup`을 해보면 DNS 접속을 못하는 것을 확인할 수 있다. google.com같은 Public Domain뿐만 아니라 AWS private Domain도 못한다.
