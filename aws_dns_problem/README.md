@@ -167,3 +167,9 @@ RDS endpoint로 접속 성공.
 
 
 내가 관리하는 Service가 다른 리전에 있어서 이러한 장애를 겪지 않았는데, 만약 내가 겪었다면 일부 개발자분들처럼 /etc/hosts에 hostname을 추가하거나, Public DNS server로 변경해서 장애를 해결할 생각을 해보았을까?
+
+# Extra
+
+- Linux는 OS level에서 DNS caching을 기본적으로 하지 않는다.
+dnsmasq를 사용해서 DNS caching 적용해서 성능향상을 볼 수 있는 부분이 있을까?
+DNS cache poisioning이 위험이 될까? [dnsmasq](https://aws.amazon.com/premiumsupport/knowledge-center/dns-resolution-failures-ec2-linux/?nc1=h_ls)
