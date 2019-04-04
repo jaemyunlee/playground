@@ -1,0 +1,11 @@
+variable "service_name" {}
+variable "image" {}
+variable "environment" {}
+variable "cluster" {}
+variable "cluster_id" {}
+variable "aws_region" {}
+variable "log_group_prefix" {}
+variable "app_port" {}
+variable "ecs_task_role_arn" {}
+variable "ecs_target_group_arn" {}
+variable "registry_arn" {}

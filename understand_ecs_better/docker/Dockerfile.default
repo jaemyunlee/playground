@@ -1,0 +1,8 @@
+FROM node:10.13.0-alpine
+
+RUN mkdir /default
+COPY ./default/ /default/
+WORKDIR /default
+RUN yarn install
+
+CMD ["node", "app.js"]
