@@ -1,0 +1,13 @@
+cluster = "jayground"
+environment = "test"
+service_name = "express"
+service_image = "120387605022.dkr.ecr.ap-northeast-2.amazonaws.com/service"
+default_service_image = "120387605022.dkr.ecr.ap-northeast-2.amazonaws.com/default"
+default_service_name = "default"
+aws_region = "ap-northeast-2"
+log_group_prefix = "test"
+app_port = 3000
+key_pair = "jayground"
+max_instance_size = 3
+min_instance_size = 2
+desired_capacity = 2

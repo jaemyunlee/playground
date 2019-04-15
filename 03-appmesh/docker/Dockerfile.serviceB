@@ -1,0 +1,8 @@
+FROM node:10.13.0-alpine
+
+RUN mkdir /serviceB
+COPY ./serviceB/ /serviceB/
+WORKDIR /serviceB
+RUN yarn install
+
+CMD ["node", "app.js"]
