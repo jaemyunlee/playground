@@ -5,6 +5,7 @@
 3. [AWS app mesh 테스트 해보기](https://github.com/jaemyunlee/playground/tree/master/03-appmesh/)
 ---
 
-### Review
+### Conference
 
 1. [2019 Azure Everywhere conference 참석 후기](https://github.com/jaemyunlee/playground/tree/master/conferences/2019/AzureEverywhere/)
+2. [2019 AWS Seoul Summit 참석 후기](https://github.com/jaemyunlee/playground/tree/master/conferences/2019/AWS-Seoul-Summit/)
