@@ -1,5 +1,0 @@
-sanic==0.8.0
-aiohttp==3.5.1
-jaeger_client
-opentracing
-opentracing_instrumentation
