@@ -1,0 +1,234 @@
+Transform: "AWS::Serverless-2016-10-31"
+Description: "payment-system-serverless"
+
+Globals:
+  Function:
+    VpcConfig:
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+      SecurityGroupIds:
+        - !GetAtt WarmerSG.GroupId
+
+Parameters:
+  APITraceEnabled:
+    AllowedValues: [true, false]
+    Default: false
+    Type: String
+  LambdaTraceEnabled:
+    AllowedValues: [Active, PassThrough]
+    Default: PassThrough
+    Type: String
+  TestMemorySize:
+    Default: 512
+    Type: Number
+  Delay:
+    Default: 0.5
+    Type: Number
+  Concurrency:
+    Default: 0
+    Type: Number
+
+Resources:
+  Api:
+    Type: "AWS::Serverless::Api"
+    Properties:
+      StageName: test
+      TracingEnabled: !Ref APITraceEnabled
+  WarmerLambda:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      Runtime: nodejs8.10
+      MemorySize: 1024
+      Timeout: 60
+      Tracing: !Ref LambdaTraceEnabled
+      FunctionName: warmer-lambda
+      Handler: index.handler
+      CodeUri: warmer/
+      Policies:
+        - VPCAccessPolicy: {}
+        - Statement:
+            - Sid: AllowTracing
+              Effect: Allow
+              Action:
+                - "xray:PutTraceSegments"
+                - "xray:PutTelemetryRecords"
+                - "xray:GetSamplingRules"
+                - "xray:GetSamplingTargets"
+                - "xray:GetSamplingStatisticSummaries"
+              Resource: "*"
+        - Statement:
+            - Sid: InvokeLambda
+              Effect: Allow
+              Action:
+                - "lambda:InvokeFunction"
+              Resource: "*"
+  TestLambda:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      Runtime: python3.6
+      MemorySize: !Ref TestMemorySize
+      Timeout: 10
+      Tracing: !Ref LambdaTraceEnabled
+      FunctionName: test-lambda
+      Handler: lambda_function.lambda_handler
+      CodeUri: test-lambda/
+      Layers:
+        - !Ref UtilLayer
+      Policies:
+        - VPCAccessPolicy: {}
+        - Statement:
+            - Sid: AllowTracing
+              Effect: Allow
+              Action:
+                - "xray:PutTraceSegments"
+                - "xray:PutTelemetryRecords"
+                - "xray:GetSamplingRules"
+                - "xray:GetSamplingTargets"
+                - "xray:GetSamplingStatisticSummaries"
+              Resource: "*"
+      Events:
+        PublicApi:
+          Type: Api
+          Properties:
+            Path: /test/
+            Method: POST
+            RestApiId: !Ref Api
+  UtilLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: test-util
+      ContentUri: utils/
+      CompatibleRuntimes:
+        - python3.6
+      RetentionPolicy: Retain
+  WarmerPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref WarmerLambda
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt WarmerEvent.Arn
+  WarmerEvent:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: warmer-test-rule
+      ScheduleExpression: "rate(15 minutes)"
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt WarmerLambda.Arn
+          Id: mmt-warmer-test
+          Input: !Sub
+            - "{\"functionName\": \"${functionName}\",\"delay\": ${delay},\"concurrency\": ${concurrency}}"
+            - { functionName: !Ref TestLambda , delay: !Ref Delay, concurrency: !Ref Concurrency}
+  TestVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.7.0.0/16
+      Tags:
+        - Key: Name
+          Value: warmer
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref TestVPC
+      CidrBlock: 10.7.5.0/24
+      AvailabilityZone: !Select [0, !GetAZs ap-northeast-2]
+      Tags:
+        - Key: Name
+          Value: public-subnet-a
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref TestVPC
+      Tags:
+        - Key: Name
+          Value: public
+  PublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    DependsOn: TestVPC
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref TestVPC
+      InternetGatewayId: !Ref InternetGateway
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref TestVPC
+      CidrBlock: 10.7.6.0/24
+      AvailabilityZone: !Select [0, !GetAZs ap-northeast-2]
+      Tags:
+        - Key: Name
+          Value: private-subnet-a
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref TestVPC
+      CidrBlock: 10.7.7.0/24
+      AvailabilityZone: !Select [1, !GetAZs ap-northeast-2]
+      Tags:
+        - Key: Name
+          Value: private-subnet-b
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref TestVPC
+      Tags:
+        - Key: Name
+          Value: private
+  EIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: "vpc"
+  NATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt EIP.AllocationId
+      SubnetId: !Ref PublicSubnetA
+      Tags:
+        - Key: Name
+          Value: warmer-nat
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway
+  PrivateSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTable
+  PrivateSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref PrivateRouteTable
+  WarmerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: warmer-test-sg
+      GroupDescription: warmer-test-sg
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: warmer-test-sg
+      VpcId: !Ref TestVPC
