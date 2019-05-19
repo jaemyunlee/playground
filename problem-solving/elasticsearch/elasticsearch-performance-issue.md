@@ -100,6 +100,8 @@ queue size는 200인데, 조금만 traffic이 많아지면 많은 index에서 lo
 
 Cloudwatch Metric에서 ThreadpoolBulkRejected를 보면 확인할수가 있다.
 
+![MetricGraph](https://github.com/jaemyunlee/playground/tree/master/problem-solving/elasticsearch/BulkQueueRejected.png "BulkQueueRejected Metric")
+
 GET /_nodes/nodeId1,nodeId2
 
 ```
@@ -192,6 +194,7 @@ old부분의 메모리 사용량이 75%가 되면 GC가 실행된다.
 memory pressure가 계속 높으니깐 GC collection이 더 자주 발생하고 CPU utilization도 올라갔을 것이다.
 `JVMGCOldCollectionCount` Metric을 보면 CPU, Memory pressure가 높게 유지 될때 같이 높은 count 숫자를 보인다.
 
+![MetricGraph](https://github.com/jaemyunlee/playground/tree/master/problem-solving/elasticsearch/CPUMemoryOldGCCollectionGraph.png "CPU & JVM Heap Pressure & OldGCCollectionCount")
 
 [from elastic blog](https://www.elastic.co/blog/found-understanding-memory-pressure-indicator)
 
