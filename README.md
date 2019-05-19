@@ -12,6 +12,10 @@
 8. [AWS websocket + DynamoDB stream 테스트 해보기](https://github.com/jaemyunlee/playground/tree/master/08-aws-websocket/)
 ---
 
+### Problem solving
+
+1. [Elasticsearch high JVM memory pressure](https://github.com/jaemyunlee/playground/tree/master/problem-solving/elasticsearch/elasticsearch-performance-issue.md)
+
 ### References
 
 1. [event-driven-architecture](https://github.com/jaemyunlee/playground/tree/master/references/event-driven-architecture.md)
