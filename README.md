@@ -21,6 +21,7 @@
 1. [event-driven-architecture](https://github.com/jaemyunlee/playground/tree/master/references/event-driven-architecture.md)
 2. [serverless](https://github.com/jaemyunlee/playground/tree/master/references/serverless.md)
 3. [AWS DynamoDB](https://github.com/jaemyunlee/playground/tree/master/references/AWS-DynamoDB.md)
+4. [AWS Aurora](https://github.com/jaemyunlee/playground/tree/master/references/AWS-Aurora.md)
 
 ---
 
