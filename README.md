@@ -10,6 +10,7 @@
 6. [DynamoDB item size 계산해보기](https://github.com/jaemyunlee/playground/tree/master/06-calculate-dynamodb-item-size/)
 7. [DynamoDB에서 item total count를 어떻게 해볼 수 있을까?](https://github.com/jaemyunlee/playground/tree/master/07-get-total-count-in-dynamodb/)
 8. [AWS websocket + DynamoDB stream 테스트 해보기](https://github.com/jaemyunlee/playground/tree/master/08-aws-websocket/)
+9. [Black belt for AWS SAM local command(English)](https://github.com/jaemyunlee/playground/tree/master/09-black-belt-for-sam-local/)
 ---
 
 ### Problem solving

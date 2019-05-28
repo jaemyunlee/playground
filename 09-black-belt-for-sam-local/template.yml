@@ -1,0 +1,196 @@
+Transform: "AWS::Serverless-2016-10-31"
+Description: "example template"
+Globals:
+  Function:
+    Runtime: python3.6
+    MemorySize: 512
+    Timeout: 10
+    Tracing: PassThrough
+    AutoPublishAlias: !Ref Environment
+    Environment:
+      Variables:
+        SERVICE_NAME: exampleService
+        ENV: !Ref Environment
+        LOG_LEVEL: !Ref LogLevel
+    Layers:
+      - !Ref UtilLayer
+Parameters:
+  Environment:
+    Type: String
+    Default: beta
+    AllowedValues:
+      - beta
+      - prod
+  LogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues:
+      - DEBUG
+      - INFO
+      - ERROR
+      - CRITICAL
+Mappings:
+  Config:
+    beta:
+      ID: A
+    prod:
+      ID: B
+Resources:
+  Api:
+    Type: "AWS::Serverless::Api"
+    Properties:
+      StageName: !Ref Environment
+      TracingEnabled: false
+      EndpointConfiguration: REGIONAL
+      Auth:
+        Authorizers:
+          AuthLambda:
+            FunctionPayloadType: TOKEN
+            FunctionArn: !GetAtt AuthLambda.Arn
+            Identity:
+              Header: authorization
+  AuthLambda:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      FunctionName: !Join [ "-", [mmt, !Ref Environment, black, belt, auth]]
+      Runtime: python3.6
+      Handler: handlers.lambda_handler
+      CodeUri: authorizer/
+  LambdaOne:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      FunctionName: !Join ["-", [mmt, !Ref Environment, black, belt, one]]
+      Description: get a item from DynamoDB
+      Runtime: python3.6
+      Timeout: 10
+      Handler: handlers.lambda_handler
+      CodeUri: lambda1/
+      Environment:
+        Variables:
+          SOMETHING_DEPEND_ON_ENV: !FindInMap [Config, !Ref Environment, ID]
+      Policies:
+        - Statement:
+            - Sid: ExampleTable
+              Effect: Allow
+              Action:
+                - "dynamodb:GetItem"
+              Resource: !GetAtt ExampleTable.Arn
+      Events:
+        PublicApi:
+          Type: Api
+          Properties:
+            Path: /one/
+            Method: GET
+            RestApiId: !Ref Api
+            Auth:
+              Authorizer: AuthLambda
+  LambdaTwo:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      FunctionName: !Join ["-", [mmt, !Ref Environment, black, belt, two]]
+      Description: put a item in Dynamodb and send message to SQS
+      Runtime: python3.6
+      Timeout: 10
+      Handler: handlers.lambda_handler
+      CodeUri: lambda2/
+      Environment:
+        Variables:
+          SOMETHING_DEPEND_ON_ENV: !FindInMap [Config, !Ref Environment, ID]
+      Policies:
+        - Statement:
+            - Sid: ExampleTable
+              Effect: Allow
+              Action:
+                - "dynamodb:PutItem"
+                - "dynamodb:UpdateItem"
+              Resource: !GetAtt ExampleTable.Arn
+      Events:
+        PublicApi:
+          Type: Api
+          Properties:
+            Path: /two/
+            Method: POST
+            RestApiId: !Ref Api
+  LambdaThree:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      FunctionName: !Join ["-", [mmt, !Ref Environment, black, belt, three]]
+      Description: get messages from SQS
+      Runtime: python3.6
+      Timeout: 10
+      Handler: handlers.lambda_handler
+      CodeUri: lambda3/
+      Environment:
+        Variables:
+          SOMETHING_DEPEND_ON_ENV: !FindInMap [Config, !Ref Environment, ID]
+      Policies:
+        - Statement:
+            - Sid: ExampleTable
+              Effect: Allow
+              Action:
+                - "dynamodb:PutItem"
+                - "dynamodb:UpdateItem"
+              Resource: !GetAtt ExampleTable.Arn
+      Events:
+        PublicApi:
+          Type: Api
+          Properties:
+            Path: /three/
+            Method: GET
+            RestApiId: !Ref Api
+  LambdaFour:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      FunctionName: !Join ["-", [mmt, !Ref Environment, black, belt, four]]
+      Handler: handlers.lambda_handler
+      Runtime: python3.6
+      Timeout: 10
+      CodeUri: lambda4/
+      Environment:
+        Variables:
+          SOMETHING_DEPEND_ON_ENV: !FindInMap [Config, !Ref Environment, ID]
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: !GetAtt ResultQueue.QueueName
+        - Statement:
+            - Sid: ExampleTable
+              Effect: Allow
+              Action:
+                - "dynamodb:GetItem"
+                - "dynamodb:PutItem"
+                - "dynamodb:UpdateItem"
+              Resource: !GetAtt ExampleTable.Arn
+      Events:
+        ExQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt ExQueue.Arn
+            BatchSize: 1
+  ExQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Join [ "-", [mmt, !Ref Environment, example]]
+  UtilLayer:
+    Type: "AWS::Serverless::LayerVersion"
+    Properties:
+      LayerName: utils
+      Description: common util for service
+      ContentUri: utils/
+      CompatibleRuntimes:
+        - python3.6
+  ExampleTable:
+    Type: 'AWS::DynamoDB::Table'
+    DeletionPolicy: Retain
+    Properties:
+      TableName: !Join ["-", [mmt, !Ref Environment, example]]
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - KeyType: HASH
+          AttributeName: id
+Outputs:
+  ApiUrl:
+    Description: URL of your API endpoint
+    Value: !Join ["", ["https://", !Ref Api, ".execute-api.", !Ref 'AWS::Region', ".amazonaws.com/", !Ref Environment]]
