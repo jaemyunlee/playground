@@ -42,6 +42,9 @@ Places sandboxes on workers to maximize packing density without impacting custom
 
 ## 람다의 flow
 
+[understanding container Reuse in AWS Lambda](https://aws.amazon.com/blogs/compute/container-reuse-in-lambda/)
+> AWS Lambda functions execute in a container (sandbox) that isolates them from other functions and provides the resources
+
 ### case 1 : with existing worker, needs new sandbox
 
 client => load balancer =invoke=> 
