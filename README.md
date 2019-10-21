@@ -16,7 +16,7 @@
 ### Problem solving
 
 1. [Elasticsearch high JVM memory pressure](https://github.com/jaemyunlee/playground/tree/master/problem-solving/elasticsearch/elasticsearch-performance-issue.md)
-2. [Redis KEYS 문제](https://github.com/jaemyunlee/playground/tree/master/problem-solving/elasticsearch/keys-scary-cmd.md.md)
+2. [Redis KEYS 문제](https://github.com/jaemyunlee/playground/tree/master/problem-solving/elasticache/keys-scary-cmd.md.md)
 
 ### References
 
