@@ -2,15 +2,15 @@
 
 KEYS command가 Redis server의 CPU utilization을 엄청나게 사용한다는 것을 알게 되었다. Redis의 Item이 몇 백만개가 있는 상황에서 생각없이 KEYS command를 사용했다가는 엄청난 CPU utilization 사용과 장시간(몇 초) blocking이 발생할 수 있다. 그래서 Redis & AWS Elasticache에 대해서 시간을 가지고 더 공부하고 생각해보았다.
 
-[1. Redis is single threaded?](#Redis-is-single-threaded?)
+[1. Redis is single threaded?](#redis-is-single-threaded)
 
 [2. Scary KEYS command?](#Scary-KEYS-command)
 
-[3. KEYS 대신에 SCAN?](#KEYS-대신에-SCAN?)
+[3. KEYS 대신에 SCAN?](#keys-대신에-scan)
 
-[4. What's new in Elasticache Redis 4.0 and 5.0?](#What's-new-in-Elasticache-Redis-4.0-and-5.0?)
+[4. What's new in Elasticache Redis 4.0 and 5.0?](#whats-new-in-elasticache-redis-40-and-50)
 
-[5. Re:Invent 2018 Elasticache Deep Dive 강연 참고하기](#Re:Invent-2018-Elasticache-Deep-Dive-강연-참고하기)
+[5. Re:Invent 2018 Elasticache Deep Dive 강연 참고하기](#reinvent-2018-elasticache-deep-dive-강연-참고하기)
 
 # Redis is single threaded?
 
