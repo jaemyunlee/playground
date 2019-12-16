@@ -34,6 +34,7 @@
 1. [2019 Azure Everywhere conference 참석 후기](https://github.com/jaemyunlee/playground/tree/master/conferences/2019/AzureEverywhere/)
 2. [2019 AWS Seoul Summit 참석 후기](https://github.com/jaemyunlee/playground/tree/master/conferences/2019/AWS-Seoul-Summit/)
 3. [2019 Google Web Master 참석 후기](https://github.com/jaemyunlee/playground/tree/master/conferences/2019/GoogleWebMaster/)
+4. [2019 Re:Invent 참석 후기](https://github.com/jaemyunlee/playground/tree/master/conferences/2019/AWS-ReInvent/)
 
 ### online
 
