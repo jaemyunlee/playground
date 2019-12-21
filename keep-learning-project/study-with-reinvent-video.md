@@ -164,3 +164,7 @@ Control resources users can manage based on tag values
 }
 ```
 
+#### you can tag IAM users and roles <!-- omit in toc -->
+
+You can tag IAM users for the project and change policies `"aws:RequestTag/project": ["dorky"]` to `"aws:RequestTag/project": ["${aws:PrincipalTag/project}"]!
+
