@@ -2,7 +2,75 @@
 It is true that Cloud services are great tools and it can make your life easier as a devops engineer. I would like to understand the tools better and solve challanges in better way with it. AWS has lots of different services and releases new services and features continously. I made a resolution to keep learning AWS services by watching at least two re:invent youtube videos a week.
 
 ## Videos <!-- omit in toc -->
+- [AWS re:Invent 2019: Building event-driven architectures w/ Amazon EventBridge](#aws-reinvent-2019-building-event-driven-architectures-w-amazon-eventbridge)
 - [AWS re:Invent 2018: Become an IAM Policy Master in 60 Minutes or Less](#aws-reinvent-2018-become-an-iam-policy-master-in-60-minutes-or-less)
+
+## AWS re:Invent 2019: Building event-driven architectures w/ Amazon EventBridge
+
+### Event-driven benefits <!-- omit in toc -->
+- Scale and fail independently
+- Develope with agility
+- Audit with ease
+- Cut costs (when you use something like Lambda)
+
+### Building Event-driven <!-- omit in toc -->
+
+🤔Demo was quite interesting. Integration with EventBridge, Zendesk and amazon comprehend looked simple and helpful to manage negative costomer's reactions.\
+🤔Schema Registry and Discovery is what we need.\
+🤔Let's consider of seprating eventbus per domains. 
+
+#### start with the domain <!-- omit in toc -->
+
+> modeling applications themselves around the events that you need to handle so try to understand what the events that exists within the business context that you're trying to solve not just thinking about event from an infrastructure perspective.
+
+😀The presenter introduced Event storming. 
+
+#### pick an event router <!-- omit in toc -->
+
+You should pick the right one in consideration of operational responsibility, event ordering, pricing and integration.
+
+**Event ordering** \
+Well-ordered: Kinesis Data Streams, Amazon MSK, Amazon MQ
+No ordering: Amazon EventBridge, Amazon SNS
+
+**Pricing** \
+Amazon EventBridge: $1/M events \
+Amazon Kinesis Data Streams: $0.015/shard hour & 0.014/M PUT payload units
+
+ | Load                    | EventBridge | Kinesis |
+ | :---------------------- | :---------: | ------: |
+ | 1 TPS 100KB payloads    |     $3      |    $ 11 |
+ | 40 TPS 100KB payloads   |    $105     |     $50 |
+ | 1,000 TPS 5 KB payloads |     $50     |     $92 |
+
+**Integration** 
+
+event source
+- AWS services
+- SaaS apps
+- custom apps
+
+Lambda, AWS step functions => business process
+
+Amazon EventBridge - Amazon Cloudwatch logs => operational logging
+
+Amazon Kinesis Data Firehose - Amazon S3 bucket - Amazon Athena => archive and analytics
+
+### how many custom event buses should I have? <!-- omit in toc -->
+
+- Avoid routing in the producer
+- Event bus domain alignment
+
+**Create rules inside consumers**
+
+### Structuring events <!-- omit in toc -->
+
+**events vs full state descriptions** \
+you should make sure whether consumers need to know the latest status before acting on the event. Delivery of events can be delayed or failed by errors. You also need to understand how many consumers need to query to get detail from events.
+
+### managing event types <!-- omit in toc -->
+
+Schema Registry and Discovery
 
 ## AWS re:Invent 2018: Become an IAM Policy Master in 60 Minutes or Less
 
