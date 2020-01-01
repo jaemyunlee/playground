@@ -1,9 +1,257 @@
 # Keep learning project : AWS <!-- omit in toc -->
-It is true that Cloud services are great tools and it can make your life easier as a devops engineer. I would like to understand the tools better and solve challanges in better way with it. AWS has lots of different services and releases new services and features continously. I made a resolution to keep learning AWS services by watching at least two re:invent youtube videos a week.
+It is true that Cloud services are great tools and they can make your life easier as a devops engineer. I would like to understand the tools better and solve challanges efficiently with the tools. AWS has lots of different services and releases new services and features continously. I made a resolution to keep learning AWS services by watching at least two re:invent youtube videos a week.
 
 ## Videos <!-- omit in toc -->
+- [AWS re:Invent 2019: What's new in Amazon Aurora](#aws-reinvent-2019-whats-new-in-amazon-aurora)
+- [AWS re:Invent 2019: Deep Dive on Amazon Aurora with MySQL Compatibility](#aws-reinvent-2019-deep-dive-on-amazon-aurora-with-mysql-compatibility)
+- [AWS re:Invent 2019: Amazon Aurora storage demystified: How it all works](#aws-reinvent-2019-amazon-aurora-storage-demystified-how-it-all-works)
+- [AWS re:Invent 2019: What's new in AWS CloudFormation](#aws-reinvent-2019-whats-new-in-aws-cloudformation)
+  - [Linter](#linter)
 - [AWS re:Invent 2019: Building event-driven architectures w/ Amazon EventBridge](#aws-reinvent-2019-building-event-driven-architectures-w-amazon-eventbridge)
 - [AWS re:Invent 2018: Become an IAM Policy Master in 60 Minutes or Less](#aws-reinvent-2018-become-an-iam-policy-master-in-60-minutes-or-less)
+
+---
+
+## AWS re:Invent 2019: What's new in Amazon Aurora
+
+- Aurora Global Database
+    - subsecond data replication cross-Region
+- Fast cross-account database cloining
+- Aurora Serverless For PostgreSQL and MySQL
+- RDS Proxy
+  - Supports a large number of application connections
+  - Deployed across multiple AZs and fails over without losing a connection
+  - Integrates with AWS Secrets Manager and IAM
+- Performance Insight
+- Database Activity Streams
+  - Available for Aurora PostgreSQL
+- Aurora MySQL multi-master
+- Federated Query For Amazon Athena(preview)
+- Amazon Redshift federated query(preivew)
+  - when your data ends up in different places and you don't want to always copy and ETL data back and forth all the time
+  - Really old data in S3, little old data in Redshift and recent data in Aurora
+  - At the moment, RDS and Aurora PostgreSQl support it
+
+--
+
+## AWS re:Invent 2019: Deep Dive on Amazon Aurora with MySQL Compatibility
+
+🤔[proxysql](https://www.proxysql.com/) vs RDS proxy
+- [proxysql: Aurora failover without losing connection](https://www.proxysql.com/blog/aurora-failover-without-losing-transactions)
+- [proxysql: single endpoint for write and read](https://aws.amazon.com/blogs/database/how-to-use-proxysql-with-open-source-platforms-to-split-sql-reads-and-writes-on-amazon-aurora-clusters/)
+- [pgpool: single endpoint for write and read](https://aws.amazon.com/blogs/database/a-single-pgpool-endpoint-for-reads-and-writes-with-amazon-aurora-postgresql/)
+
+### Write quorum and Local tracking in action <!-- omit in toc -->
+
+> database nodes have durability and commit tracker to make sure that everything has to achieve quorum before it acknowledge commit.
+
+parallel flush but acknowledge in the order. (T1 4 out of 6, T2 3 out of 6, T3 4 out of 6 => After T2 achieves quorum and acknowledges commit back to client, T3 can be acknowledged)
+
+### Read scale out <!-- omit in toc -->
+
+| MysqL                         | Aurora                 |
+| ----------------------------- | ---------------------- |
+| Separate logical stream       | Reuses redo log stream |
+| binlog apply                  | page cache update      |
+| Same with workload on replica | No writes on replica   |
+| Independent storage           | Shared storage         |
+
+### Aurora Multi-Master Architecture page <!-- omit in toc -->
+
+**Optimistic Conflict Resolution**
+
+#### conflicting writes originating on different masters on the same table <!-- omit in toc -->
+
+case 1 \
+If two clients update the same row in the same table at the same time, one of clients who get a majority vote from storage nodes will commit and the other client will be rejected and rollback. The rejected client needs to retry.
+
+case 2 \
+If one client updates the row first and the other client tries to update the same row before being committed, it immediately fails and rollbacks. (MVCC)
+
+### Parallel Query <!-- omit in toc -->
+
+**parallel query is only available in the Aurora compatible with MySQL 5.6.**
+
+rather bringing the entire table into the memory and then running a filter, it just gets filtered data back from distributed storage nodes.
+
+reduce buffer pool pollution!
+
+### Aurora read replica & Global database <!-- omit in toc -->
+
+availiability zone fail => one of (upto 15) replicas across multiple AZ will be promoted
+
+whole region fail => aurora global database
+- Multi-Mirror support
+- 5.7 support
+- In-place upgrade support
+- Extended to All Aurora regions
+
+### Aurora ML integration <!-- omit in toc -->
+1. select and train the ML models
+2. Run a SQL query to invoke the ML service
+3. Process the result in the application
+
+### Amazon RDS Proxy(Preview) <!-- omit in toc -->
+- pool and share connections for scaling applications with unpredictable workloads, high connection open rates, or idling connections
+- Transparently tolerate transient failures without complex failure
+    - If master goes down RDS proxy will hold the connection and redirect to the new master. Client side doesn't need to handle this kind of failure, just get higher lantency.
+    - Recovery is fast but DNS propagation itself takes several tens seconds. This is actually a bottleneck in Aurora.
+- Centralized credentials management with AWS Secrets Manager and optionally IAM authentication
+
+### Customer success part <!-- omit in toc -->
+
+- write scalability is top concern
+- Horizontall partition user data
+
+---
+
+## AWS re:Invent 2019: Amazon Aurora storage demystified: How it all works
+
+### Log is the database <!-- omit in toc -->
+
+🤔Let's use Aurora clone to test services on beta environment.
+
+Traditional MySQL needs much more I/O operations than Aurora because it needs operations such as transaction logging, doublewrite buffer and flushing. Aurora can construct any version of a database page with the log stream. Aurora just writes log records to the distributed storage and the distributed storage does the continuous checkpointing.
+
+Read replicas have their own buffer pools. If something changes it need to update the buffer pools.
+
+### leveraged other services <!-- omit in toc -->
+
+Aurora leveraged serveral services in AWS. DynamoDB to store metadatas, Route53 for naming, EC2 instance and Amazon S3 for storing backups.
+
+### I/O flow in Amazon Aurora storage node <!-- omit in toc -->
+- All steps are asynchronous
+- Only steps 1 and 2 are in the foreground latency path
+
+1. Receiving log records and add to in-memory queue and durably persist log records(Hot log)
+2. ACK to the database (1 and 2 are synchronous process. Database instance needs 4 ACK out of 6 storage nodes)
+3. Organize records and identify gaps in log
+4. Gossip with peers to fill in holes
+5. Collesce log records into new page versions
+6. Periodically stage log and new page versions to S3
+7. Periodically garbage collect old versions
+8. Periodically validate CRC (checksum validation) codes on blocks
+
+### tolerance & write quorum of 4/6 <!-- omit in toc -->
+
+There are copies in 6 storage nodes. each pair of storage nodes are in three different AZs. If an AZ fails, there are still 4 copies and it maintains write availability. If an AZ fails and one node fails in different AZ, there are 3 copies. It reconstructure remaing copy and recover write availability.
+
+### 10GB protection group <!-- omit in toc -->
+
+Replicate each segment 6 ways into a protection group.
+
+> When the cluster is created, it consumes very little storage. As the volume of data increases and exceeds the currently allocated storage, Aurora seamlessly expands the volume to meet the demand and adds new protection groups, as necessary. Amazon Aurora continues to scale in this way until it reaches its current limit of 64 TB.
+
+### Global database <!-- omit in toc -->
+
+binlog replication doesn't scale well. Lag increases dramatically when it exceed specific QPS.
+
+### Fast database cloning <!-- omit in toc -->
+
+Creation of a clone is instantaneous because it doesn't require deep copy
+
+### Database backtrack <!-- omit in toc -->
+
+Backtrack is a quick way to bring the database to a particular point in time without having to restore from backups
+
+---
+
+## AWS re:Invent 2019: What's new in AWS CloudFormation
+
+🤔[taskcat](https://github.com/aws-quickstart/taskcat) was not introduced in this session.
+🤔I struggled to change a logical resource name without deleting the resource. I also can't refer to exisiting resources which are not in a stack like I did with Terraform data source. Resource import feature can be very helpful!
+🤔Would I have a situation to use custom resources?
+
+### Resource import <!-- omit in toc -->
+
+Add resources to stacks without recreating them
+
+#### refactoring resources in stacks <!-- omit in toc -->
+
+Move a resource from Stack A to Stack B, non-destructively
+- Update Stack A with a deletion policy = retain
+- Remove resource from Stack A
+- Import resource to Stack B
+
+#### remediating drift <!-- omit in toc -->
+
+If a resource's properties changed significantly outside of AWS CloudFormation
+- Update deletion policy = retain
+- Remove resource safely
+- Import resource back, with all current states/properties
+
+#### additional uses <!-- omit in toc -->
+- Change a logical resource name when renaming requires replacement
+- Import a single (non-nested) stack into another stack
+
+[AWS News Blog about new feature resource import on the 13th of November 2019](https://aws.amazon.com/blogs/aws/new-import-existing-resources-into-a-cloudformation-stack/)
+
+### StackSets enhancements <!-- omit in toc -->
+
+- New drift detection for StackSets
+- Increased limits
+    - 20 -> 100 StackSets per admin account
+    - 500 -> 2000 stack instances per StackSets
+
+#### Integration with AWS Organizations (not launched yet but comming soon) <!-- omit in toc -->
+
+Automation of multi-account and multi-region permissions management and deployment through AWS Organizations
+
+**Permission Model** \
+You had to create all necessary roles for cross-account deployment. new service-managed permissions can be used for accounts inside full service AWS Organization.
+
+**Deployments to organization's root or oganization units**
+You can deploy a stack to organization's root or stacks per OU.
+
+**automatic deployments** \
+If you add or remove an account in OU, It deploy or destroy automatically the stack to that account. The goal is to make the management of your multi accounts and multi region deployments as effortless as possible
+
+### Programming scenarios <!-- omit in toc -->
+
+**Core YAML/JSON**\
+other transformations result in this format
+
+**Macro/transform**\
+AWS SAM, AWS Cloudformation, macros
+
+**High-level language**\
+AWS CDK
+
+**custom resources**\
+Call remote APIs, resources not supported yet, proxies to external resource
+
+### [Linter](https://github.com/aws-cloudformation/cfn-python-lint)
+- supports AWS SAM
+- supports linting as a GitHub action
+
+**you can customize your linter**
+- Require specific tags
+- Blacklist of resource type (Can't create X resource type)
+- Enforce/require a property
+- Forbid a property value (Don't allow the creation of public buckets)
+
+### AWS CDK <!-- omit in toc -->
+
+Constructs(Source code) <-excuete- CDK CLI(Compiler) -synthesize-> Template -deploy-> Cloudformation(Processor) -provision-> Cloud
+
+### native features <!-- omit in toc -->
+
+**rollback trigger**\
+You can specify the alarms and the thresholds you want AWS CloudFormation to monitor, and if any of the alarms are breached, CloudFormation rolls back the entire stack operation to the previous deployed state.
+
+**change set**\
+
+**stabilization**
+
+### Nested stack <!-- omit in toc -->
+
+As your infrastructure grows, common patterns can emerge in which you declare the same components in multiple templates. You can separate out these common components and create dedicated templates for them. Then use the resource in your template to reference other templates, creating nested stacks.
+
+### AWS CloudFormation Registry & Cloudoformation CLI <!-- omit in toc -->
+
+The CloudFormation Command Line Interface (CLI) is an open-source tool that enables you to develop and test AWS and third-party resources, and register them for use in AWS CloudFormation. 
+
+---
 
 ## AWS re:Invent 2019: Building event-driven architectures w/ Amazon EventBridge
 
@@ -71,6 +319,8 @@ you should make sure whether consumers need to know the latest status before act
 ### managing event types <!-- omit in toc -->
 
 Schema Registry and Discovery
+
+---
 
 ## AWS re:Invent 2018: Become an IAM Policy Master in 60 Minutes or Less
 
@@ -235,4 +485,3 @@ Control resources users can manage based on tag values
 #### you can tag IAM users and roles <!-- omit in toc -->
 
 You can tag IAM users for the project and change policies `"aws:RequestTag/project": ["dorky"]` to `"aws:RequestTag/project": ["${aws:PrincipalTag/project}"]!
-
