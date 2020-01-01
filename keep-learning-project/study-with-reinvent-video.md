@@ -6,7 +6,6 @@ It is true that Cloud services are great tools and they can make your life easie
 - [AWS re:Invent 2019: Deep Dive on Amazon Aurora with MySQL Compatibility](#aws-reinvent-2019-deep-dive-on-amazon-aurora-with-mysql-compatibility)
 - [AWS re:Invent 2019: Amazon Aurora storage demystified: How it all works](#aws-reinvent-2019-amazon-aurora-storage-demystified-how-it-all-works)
 - [AWS re:Invent 2019: What's new in AWS CloudFormation](#aws-reinvent-2019-whats-new-in-aws-cloudformation)
-  - [Linter](#linter)
 - [AWS re:Invent 2019: Building event-driven architectures w/ Amazon EventBridge](#aws-reinvent-2019-building-event-driven-architectures-w-amazon-eventbridge)
 - [AWS re:Invent 2018: Become an IAM Policy Master in 60 Minutes or Less](#aws-reinvent-2018-become-an-iam-policy-master-in-60-minutes-or-less)
 
@@ -220,7 +219,7 @@ AWS CDK
 **custom resources**\
 Call remote APIs, resources not supported yet, proxies to external resource
 
-### [Linter](https://github.com/aws-cloudformation/cfn-python-lint)
+### [Linter](https://github.com/aws-cloudformation/cfn-python-lint) <!-- omit in toc -->
 - supports AWS SAM
 - supports linting as a GitHub action
 
