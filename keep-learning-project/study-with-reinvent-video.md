@@ -2,12 +2,129 @@
 It is true that Cloud services are great tools and they can make your life easier as a devops engineer. I would like to understand the tools better and solve challanges efficiently with the tools. AWS has lots of different services and releases new services and features continously. I made a resolution to keep learning AWS services by watching at least two re:invent youtube videos a week.
 
 ## Videos <!-- omit in toc -->
+- [AWS re:Invent 2019: Whatʼs new with Amazon ElastiCache](#aws-reinvent-2019-what%ca%bcs-new-with-amazon-elasticache)
+- [AWS re:Invent 2019: Performing chaos engineering in a serverless world](#aws-reinvent-2019-performing-chaos-engineering-in-a-serverless-world)
 - [AWS re:Invent 2019: What's new in Amazon Aurora](#aws-reinvent-2019-whats-new-in-amazon-aurora)
 - [AWS re:Invent 2019: Deep Dive on Amazon Aurora with MySQL Compatibility](#aws-reinvent-2019-deep-dive-on-amazon-aurora-with-mysql-compatibility)
 - [AWS re:Invent 2019: Amazon Aurora storage demystified: How it all works](#aws-reinvent-2019-amazon-aurora-storage-demystified-how-it-all-works)
 - [AWS re:Invent 2019: What's new in AWS CloudFormation](#aws-reinvent-2019-whats-new-in-aws-cloudformation)
 - [AWS re:Invent 2019: Building event-driven architectures w/ Amazon EventBridge](#aws-reinvent-2019-building-event-driven-architectures-w-amazon-eventbridge)
 - [AWS re:Invent 2018: Become an IAM Policy Master in 60 Minutes or Less](#aws-reinvent-2018-become-an-iam-policy-master-in-60-minutes-or-less)
+
+---
+
+## [AWS re:Invent 2019: Whatʼs new with Amazon ElastiCache](https://youtu.be/SaGW_Bln3qA)
+
+🙃AWS launched [reader endpoint](https://aws.amazon.com/about-aws/whats-new/2019/06/amazon-elasticache-launches-reader-endpoint-for-redis/) in June
+
+### Performance <!-- omit in toc -->
+
+Vanila R4 < Vanila R5(Nitro system) < Tuned R5 < Tuned R5 with enhanced I/O
+
+#### M5 and R5 optimized instances <!-- omit in toc -->
+
+#### Enhanced I/O <!-- omit in toc -->
+
+Redis has single thread architecture
+- Simplicity
+- No race conditions, no synchronizations
+- Easy to understand and extend
+- Easy to support rich functionality
+- Share-nothing architecture - scale by sharding
+- Improves cache coherency
+
+seventy percent of time is spent in the IO layer and communications!
+
+socket communication on separate threads -> enhanced I/O
+
+#### T3 support <!-- omit in toc -->
+
+Ideal for entry-level, small, and medium Amazon ElastiCache workloads that may also experience temporarily spikes in use.
+
+### Security <!-- omit in toc -->
+- Customer managed Customer Master Keys for encryption
+  - Encryption at rest using customer managed CMKs in AWS Key Management Service
+  - ElastiCache for Redis encrypts all data on disk, including service backups stored in S3 with your encryption key
+- Modifying Redis Authentication Tokens
+  - Before this feature, authentication token was set once only during creation and can't be changed
+  - now allows rotation of token and modify authentication tokens without interrupting clients
+  - Supported on encryption in-transit enabled clusters Redis 5.0.5 onwards
+- Rename Commands
+  - Redis 5.0.3 onwards
+
+### Scalability <!-- omit in toc -->
+- Online scale up and down
+  - Fully online, cluster continues to serve reads and writes
+- Reader endpoint for Cluster Model disabled
+
+### fully-managed <!-- omit in toc -->
+- Self-service security updates
+
+---
+
+## [AWS re:Invent 2019: Performing chaos engineering in a serverless world](https://youtu.be/vbyjpMeYitA)
+
+😏The idea of building fault injection in Lambda with Lambda layer and Python decorator looks simple and interesting. I think I can apply this into our serverless applications.
+- [Injecting Chaos to AWS Lambda functions using Lambda Layers](https://medium.com/@adhorn/injecting-chaos-to-aws-lambda-functions-using-lambda-layers-2963f996e0ba)
+- [Injecting Chaos to AWS Lambda functions with Lambda Layers— RELOADED](https://medium.com/@adhorn/failure-injection-gain-confidence-in-your-serverless-application-ce6c0060f586)
+🤔one of motiviations for chaos engineering should be better customer experience. I thought we needed to know what makes customers happy and what are the critical parts in our applications for that first. Then, we prioritize chaos experiments based on that.
+🤔Sometimes DynamoDB had internal server errors. Applications returned error messages to clients even if it retried several times with exponential backoff in synchronous request response communication. I thought we might need to mock this situation and test applications with it. How can I mock this?
+🤔fallbacks!! The application had a problem because a 3rd party tracking service was down. What fallback strategy should we have had for better customer experience?
+
+### What is chaos engineering? <!-- omit in toc -->
+
+> Chaos engineering is about performing controlled experiments to inject failure
+> Chaos engineering is about finding the weaknesses in a system and fixing them before they break
+> Chaos engineering is about building confidence in your system and in your organization
+
+### Motivations behind chaos engineering <!-- omit in toc -->
+
+- Are your customers getting the experience they should?
+- Is downtime or issues costing you money?
+- Are you confident in your monitoring and alerting?
+- Is your organization ready to handle outages?
+- Are you learning from incidents?
+
+### Running chaos experiments <!-- omit in toc -->
+1. Define steady state
+   - The normal behavior of a system over time
+   - System metrics and business metrics
+   - Business metrics are usually more useful
+   - Steady state is not necessarily continuous
+2. Form your hypothesis
+   - Use what ifs to find it
+   - Chaos can be injected at any layer of the stack
+   - Scientific "If... then..." method
+   - Always fix known problems first
+3. Plan and run your experiment
+   - Whiteboard the experiment in detail
+   - Contain the blast radius
+   - Notify the organization
+   - Have a "stop" button ready
+4. Measure and learn
+   - Use metrics to prove or disprove the hypothesis
+   - Was the system resilient to the injected failure?
+   - did anything unexpected happen?
+   - Share your progress and success
+5. Scale up or abort and fix
+   - Use the learnings to improve
+   - With confidence you can scale up
+   - Increased scope can reveal new effects
+
+### Common serverless weakness <!-- omit in toc -->
+- Error handling
+  - DLQ -> we don't have to handle errors in our code
+- Timeout values
+  - What if there is issue, not in steady status?
+- Events
+  - Do we handle events correctly? 
+  - Do we queue events correctly?
+  - What happens to events in case of service failures?
+- Fallbacks
+  - 3rd party service we use have problem?
+- Failovers
+  - Region outrages?
+  - ISP abnormal latency?
 
 ---
 
@@ -31,7 +148,7 @@ It is true that Cloud services are great tools and they can make your life easie
   - Really old data in S3, little old data in Redshift and recent data in Aurora
   - At the moment, RDS and Aurora PostgreSQl support it
 
---
+---
 
 ## AWS re:Invent 2019: Deep Dive on Amazon Aurora with MySQL Compatibility
 
