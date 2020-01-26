@@ -67,8 +67,11 @@ Ideal for entry-level, small, and medium Amazon ElastiCache workloads that may a
 😏The idea of building fault injection in Lambda with Lambda layer and Python decorator looks simple and interesting. I think I can apply this into our serverless applications.
 - [Injecting Chaos to AWS Lambda functions using Lambda Layers](https://medium.com/@adhorn/injecting-chaos-to-aws-lambda-functions-using-lambda-layers-2963f996e0ba)
 - [Injecting Chaos to AWS Lambda functions with Lambda Layers— RELOADED](https://medium.com/@adhorn/failure-injection-gain-confidence-in-your-serverless-application-ce6c0060f586)
+
 🤔one of motiviations for chaos engineering should be better customer experience. I thought we needed to know what makes customers happy and what are the critical parts in our applications for that first. Then, we prioritize chaos experiments based on that.
+
 🤔Sometimes DynamoDB had internal server errors. Applications returned error messages to clients even if it retried several times with exponential backoff in synchronous request response communication. I thought we might need to mock this situation and test applications with it. How can I mock this?
+
 🤔fallbacks!! The application had a problem because a 3rd party tracking service was down. What fallback strategy should we have had for better customer experience?
 
 ### What is chaos engineering? <!-- omit in toc -->
