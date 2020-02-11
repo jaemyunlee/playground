@@ -4,9 +4,52 @@ I played around with Minikube and EKS to understand Kubernetes. I would like to 
 
 ## History <!-- omit in toc -->
 
-- [Kubernetes Design Principles: Understand the Why - Saad Ali, Google](#kubernetes-design-principles-understand-the-why---saad-ali-google)
+- [Kubernetes Operators Explained](#kubernetes-operators-explained)
+- [KubeCon 2018 Keynote: Maturing Kubernetes Operators - Rob Szumski](#kubecon-2018-keynote-maturing-kubernetes-operators---rob-szumski)
+- [KubeCon 2018 Kubernetes Design Principles: Understand the Why - Saad Ali, Google](#kubecon-2018-kubernetes-design-principles-understand-the-why---saad-ali-google)
 
-## [Kubernetes Design Principles: Understand the Why - Saad Ali, Google](https://youtu.be/ZuIQurh_kDk)
+## [Kubernetes Operators Explained](https://youtu.be/i9V4oCa5f9I)
+
+😉 Operator는 이제 Abstraction해서 client가 single YAML file로 create하면 Operator가 받아서 복잡한 요소들을 만들어 줄 수 있구나.
+
+Control loop
+- Observe
+- Diff
+- Act
+
+Controller acts on that for every default resource
+
+In cluster, you need
+- Operator Lifecycle Manager
+- Operator
+
+Two major components of operator
+- CRD
+- Controller
+
+## [KubeCon 2018 Keynote: Maturing Kubernetes Operators - Rob Szumski](https://youtu.be/kld1Fi8RrRQ)
+
+🤔 Database를 k8s위에서 제공하는 것이 startup에서도 가능할까?
+- Community에서 만든 Operator를 사용하여 MySQL이나 Redis를 k8s위에 올려서 사용하기 쉬울까? stable하고 안전할까?
+
+Kubernetes adoption phases
+1. Stateless apps
+   - ReplicaSets
+   - Deployments
+2. Stateful apps
+   - StatefulSets
+   - Storage/CSI
+3. Distributed systems
+   - Data rebalancing
+   - Autoscaling
+   - Seamless upgrades
+
+Operator framework
+- Operator SDK: build
+- Operator Lifecycle manager: run 
+- Operator metering: operate
+
+## [KubeCon 2018 Kubernetes Design Principles: Understand the Why - Saad Ali, Google](https://youtu.be/ZuIQurh_kDk)
 
 😙 Kubernetes의 주요 Principle들을 이해할 수 있었다.
 - imperative 대신에 declarative로 구성하였을 때 어떤 장점이 있는지?
