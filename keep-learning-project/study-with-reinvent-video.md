@@ -1,4 +1,4 @@
-# Keep learning project : AWS <!-- omit in toc -->
+# Keep learning project #1 : AWS <!-- omit in toc -->
 It is true that Cloud services are great tools and they can make your life easier as a devops engineer. I would like to understand the tools better and solve challanges efficiently with the tools. AWS has lots of different services and releases new services and features continously. I made a resolution to keep learning AWS services by watching at least two re:invent youtube videos a week.
 
 ## Videos <!-- omit in toc -->
