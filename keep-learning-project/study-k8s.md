@@ -4,10 +4,142 @@ I played around with Minikube and EKS to understand Kubernetes. I would like to 
 
 ## History <!-- omit in toc -->
 
+- [7 GCP Kubernetes Best Practices videos](#7-gcp-kubernetes-best-practices-videos)
+  - [Building small containers](#building-small-containers)
+  - [Organizing Kubernetes with Namespace](#organizing-kubernetes-with-namespace)
+  - [Kubernetes Health Checks with Readiness and Liveness Probes](#kubernetes-health-checks-with-readiness-and-liveness-probes)
+  - [Setting Resource Requests and Limits in Kubernetes](#setting-resource-requests-and-limits-in-kubernetes)
+  - [Terminating with Grace](#terminating-with-grace)
+  - [Mapping External Services](#mapping-external-services)
+  - [Upgrading your Cluster with Zero Downtime](#upgrading-your-cluster-with-zero-downtime)
 - [Vitess: Sharded MySQL on Kubernetes](#vitess-sharded-mysql-on-kubernetes)
 - [Kubernetes Operators Explained](#kubernetes-operators-explained)
 - [KubeCon 2018 Keynote: Maturing Kubernetes Operators - Rob Szumski](#kubecon-2018-keynote-maturing-kubernetes-operators---rob-szumski)
 - [KubeCon 2018 Kubernetes Design Principles: Understand the Why - Saad Ali, Google](#kubecon-2018-kubernetes-design-principles-understand-the-why---saad-ali-google)
+
+
+## 7 GCP Kubernetes Best Practices videos
+
+### [Building small containers](https://youtu.be/wGz_cbtCiEA)
+
+Performance 측면에서 small container가 build, push, pull하는데 유리하다. 여기서는 Google container registry 서비스에서 base image를 cache하고 있기 때문에 push에서는 push하는 time이 크게 차이 안난다고 한다.
+
+기본적으로 container 사이즈를 줄이기 위해서 사용하고 있었던 alpine base image 사용하기와 multi stage build를 설명하고 있다.
+
+그리고 small container일 수록 보안적으로 노출 될 수 있는 부분이 적다. 여기서는 Container Registry Vulnerability Scanning service로 go:onbuild의 container와 multi staged build의 image를 scan해서 vulnerability가 큰 사이즈의 컨테이너가 더 많은 것을 보여준다.
+
+[AWS ECR에서도 2019년 10월에 Image scanning 기능을 출시했구나.](https://aws.amazon.com/about-aws/whats-new/2019/10/announcing-image-scanning-for-amazon-ecr/)
+
+### [Organizing Kubernetes with Namespace](https://youtu.be/xpnZX3if9Tc)
+
+기본적으로 생기는 Kubernetes
+- default
+- kube-system
+- kube-public
+
+active namespace를 편리하게 관리할 수 있는 Tool
+- kubens: switch your active namespace to the namespace you want
+- 귀찮게 kubectl get pods --namespace=something 처럼 namespace option을 지정하는 대신에 kubens로 active namespace를 바꿔서 관리
+
+Cross Namespace Communication
+- Services in Kubernetes expose their endpoint using a common DNS pattern \
+  `<Service Name>.<Namespace Name>.svc.cluster.local`
+- 이제 그냥 `servicename`으로 하거나 같은 namespace에 동일한 이름의 서비스가 있다면 `servicename.namespacename`으로!
+
+어떻게 namespace를 managable하게 관리할 수 있을까?
+
+🤔 결국은 namespace도 어느정도의 isolation을 팀에게 줄 건지에 따라서 결정되겠지. 아주 작은 팀에서는 그냥 default namespace를 쓰는 것이 충분할 수 있고, 팀이 더 커지게 되면 이제 서로의 팀들이 독립성을 줄 수 있도록 namespace를 구분하거나 이제 정말 그냥 API로 서로 독립적으로 통신하면 되면 이제 cluster로 나눌 수 있는 것이겠지. Monolithic application vs microservice architecture 중에 조직에서 어떤 것이 필요할지 결정하는 것과 Namespace 관리가 비슷한 이슈인것 같다.
+
+### [Kubernetes Health Checks with Readiness and Liveness Probes](https://youtu.be/mxEvAPQRwhw)
+
+Types of Health Checks
+1. Readiness
+   - by default, Kubernetes will start sending traffic as soon as the process inside the container start.
+2. Liveness
+   - restart a pod
+
+Types of Probes
+1. HTTP: 200대 response status받으면 success
+2. Command: exit status가 zero이면 success
+3. TCP: connection establish하면 success
+
+Configuring Probes
+- initialDelaySeconds
+  - P99 startup time or average time with buffer
+- periodSeconds
+- timeoutSeconds
+- successThreshold
+- failureTrhreshold
+
+### [Setting Resource Requests and Limits in Kubernetes](https://youtu.be/xjpHggHKm78)
+
+Requests and Limits
+
+cpu의 경우 limit을 넘어가려면 restrict해서 performance가 안 좋아지지만 계속 실행된다. 하지만 memory같은 경우 limit을 넘어가면 이제 그 container는 terminate된다.
+
+~~resource request가 지금 node가 사용가능한 resource를 넘어가게 되면 이제 그 pod pending 상태가 되고 이제 pending인 pod보다 priority가 낮은 pod가 이제 evict되고 queue에서 기다리는 priority가 높은 pod가 schedule 된다.~~ request resource랑 실제로 node에서 사용중인 resource는 다르다! 그래서 pending state는 이제 requests resource확보가 노드에서 안되니깐 pending상태가 되는 거고 이제 이 상태에서는 따로 running중인 pod를 kill할 필요 없겠지. 근데 이제 실제로 사용하는 리소스가 이제 requests를 넘어서 limit까지 가고 이제 node전체로 봤을 때 node의 resource를 넘어가게 되면 이제 Kubernetes는 이제 자원 확보를 위해서 pod를 kill해야겠지!
+
+node로 사용되는 EC2 instance의 vCPU가 2인데, request cpu를 2.5 CPU로 한다고 하면 이 pod는 계속 실행될 수 없을 것이다. \
+🤔 이런 경우에 evict는 어떻게 되는거지? => evict는 안되고 이제 pending state로 남아있겠지!
+
+이제 namespace에서도 ResourceQuota랑 LimitRange를 사용할 수 있다. `kind: ResourceQuota`로 이제 `requests.cpu`, `request.memory`, `limits.cpu`, `limits.memory`를 설정해서 namespace의 container들의 합이 이것들을 넘지 않도록 할 수 있다. `kind: LimitRange`는 이제 전체 namespace가 아니라 각각의 container에 default, limit, max, min를 설정할 수 있다. default를 설정안하고 max만 한다면 이제 default값이 max가 된다. default를 지정안하고 min가 있다면 이제 default값은 min값이 된다. 
+
+GKE의 auto scaler는 이제 node가 requests를 만족할 수 없어서 이제 pending state가 된 pod가 있으면 이제 node를 더 추가해서 그 pod를 실행한다. \
+🤔 pending state가 있다고 무조건 evict되는 것 같지는 않다? pending state인데 prority가 낮은 running pod가 있을 때만 evict가 되는건가? -> 실제 사용되는 resource memory가 node memory를 넘어가면 이제 evict가 진행되는거지!
+
+Overcommitment
+
+이제 requests가 있고 Limit이 있는데, pod가 requests보다 Limit까지 더 많이 쓸 수 있다. 결과적으로 이제 Node가 가지고 있는 리소스보다 더 많이 사용할 수 있다. CPU같은 경우는 이제 compress해서 성능이 느려지지만 제한해서 계속 작업을 할 수 있는데, 이제 memory같은 경우에는 Out Of Memory로 이제 전체 시스템이 다운될 수 있다. 이제 노드의 리소스를 넘어가게 되면 이제 overcommitted state가 되고 이제 Kubernetes가 resource를 확보하기 위해서 어떤 pod를 terminate할지 결정해야 한다. 이 결정에 있어서 pod의 priority에 따라서 결정되고 같은 priority라고 하면 이제 requests resource보다 더 많이 사용하고 있는 pod가 terminate된다. 
+
+Limits and requests for CPU resources are measured in cpu units. One cpu, in Kubernetes, is equivalent to:
+
+```
+1 AWS vCPU
+1 GCP Core
+1 Azure vCore
+1 IBM vCPU
+1 Hyperthread on a bare-metal Intel processor with Hyperthreading
+```
+
+### [Terminating with Grace](https://youtu.be/Z_l_kE1MDTc)
+
+It's important that your application can handle termination gracefully(need to hand SIGTERM message)
+
+Kubernetes Termination Lifecycle
+1. Pod in Terminating State
+2. The preStop Hook is excueted
+   - If you application doesn't gracefully shut down when receiving a sigterm, you can use the preStop hook to trigger a graceful shutdown.
+3. SIGTERM signal sent to pod
+4. terminationGracePeriodSeconds안에 이제 container가 종료되면 이제 다음 step이 진행되고, 근데 아직도 container가 running중이면 SIGKILL 메세지를 보낸다. (terminationGracePeriodSeconds는 preStop Hook과 SIGTERM을 처리하는 것과 parellel하게 count된다)
+
+### [Mapping External Services](https://youtu.be/fvpq4jqtuZ8)
+
+`kind: Service`를 `type: ClusterIP`로 만들어서 이제 여기서 정의한 name으로 가리킬 수 있도록 하고, `kind: Endpoints`에 이제 ip address와 port를 정의해서 이제 이쪽으로 request가 가도록 한다.
+
+Kubernetes안에서 MongoDB가 돌고 있는게 아니라 이제 Virtual Machine에서 별도로 MongoDB가 돌고 있다고 할 때 Kubernetes의 service처럼 이제 이 MongoDB를 연결할 수 있는 것. 쿠버네티스 클러스터안에는 없지만 이제 pod에서 이제 mongdb라는 서비스 이름으로 요청할 수 있게 되는 것.
+
+이제 virtual machine이 같은 VPC에 있고 private IP address를 이제 Endpoints service에 등록해서 연결할 수 있겠지만, 대부분의 Database나 그런것들이 DNS를 제공한다. 그럴 때는 이제 `kind: Service`를 `type: ExternalName`로 만들어서 해당 DNS로 redirect할 수 있다. This service will do a simple CNAME redirect at the kernel level so there's very minimal impact on your performance. 근데 이 방법은 port가 static하게 되어 있으면 application에서 바꿀 필요가 없는데, 이제 영상의 예제처럼 test와 prod의 MongoDB instance가 다른 port가 설정되고 이게 dynamic하게 설정된다고 하면 한계점이 있다. 이제 IP가 변경되지 않는다고 하면 이제 주어진 DNS lookup을 해서 ip들을 Endpoints 서비스에 적용해서 할 수 있겠지만, 내가 경험한 상황에서는 이러한 IP들이 안바뀐다는 것을 보장할 수 없어서 활용하기 힘들 것 같다.
+
+🤔 이제 쿠버네티스 클러스트를 운영하고 외부 데이터베이스를 RDS같은 것을 사용한다고 하면 ExternalName service type을 사용해서 DNS redirect하는 것도 생각해볼 수 있겠다. 근데 그냥 환경변수로 그냥 database DNS를 환경별로 그냥 주입해서 연결하는 것보다 장점이 있는 걸까???
+
+### [Upgrading your Cluster with Zero Downtime](https://youtu.be/ajbC1yTW2x0)
+
+GKE로 zero downtime upgrade 설명
+
+Upgrading Nodes with Zero Downtime
+1. Rolling Update
+2. Migration with Node Pools
+
+지금 이 글을 작성하는 2020년 2월 12일 기준으로 GKE는
+- Stable channel: 1.14.10-gke.17
+- Regular channel: 1.15.7-gke.23
+
+AWS EKS Kubernetes versions
+- 1.14.9
+- 1.13.12
+- 1.12.10
+
+2019년 10월 4일에 [Amazon EKS now supports Kubernetes version 1.14](https://aws.amazon.com/about-aws/whats-new/2019/09/amazon-eks-now-supports-kubernetes-version-1-14/)가 공지되었네. 
 
 ## [Vitess: Sharded MySQL on Kubernetes](https://youtu.be/E6H4bgJ3Z6c)
 
