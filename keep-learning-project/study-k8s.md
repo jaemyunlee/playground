@@ -4,6 +4,7 @@ I played around with Minikube and EKS to understand Kubernetes. I would like to 
 
 ## History <!-- omit in toc -->
 
+- [KubeCon 2019 Introduction to CNI, the Container Network Interface Project](#kubecon-2019-introduction-to-cni-the-container-network-interface-project)
 - [7 GCP Kubernetes Best Practices videos](#7-gcp-kubernetes-best-practices-videos)
   - [Building small containers](#building-small-containers)
   - [Organizing Kubernetes with Namespace](#organizing-kubernetes-with-namespace)
@@ -17,6 +18,120 @@ I played around with Minikube and EKS to understand Kubernetes. I would like to 
 - [KubeCon 2018 Keynote: Maturing Kubernetes Operators - Rob Szumski](#kubecon-2018-keynote-maturing-kubernetes-operators---rob-szumski)
 - [KubeCon 2018 Kubernetes Design Principles: Understand the Why - Saad Ali, Google](#kubecon-2018-kubernetes-design-principles-understand-the-why---saad-ali-google)
 
+
+## [KubeCon 2019 Introduction to CNI, the Container Network Interface Project](https://youtu.be/YjjrQiJOyME)
+
+"CNI was created as a common interface that could be used by any container runtime and and network."
+
+Runtime이 CNI를 Call하는데 이제 ADD로 call하면 이제 Network interface를 컨테이너에 추가한다. 
+
+The CNI project has two major parts
+1. The CNI specification documents
+2. A set of reference and example plugins
+
+Specification
+1. A vendor-neutral specification - not just for Kubernetes
+2. Also used by Mesos, CloudFoundry, podman, CRI-O
+3. Defines a basic execution flow & configuration format for network operations
+4. Attempts to keep things simple and backwards compatible
+
+Configuration Format
+1. JSON-based configuration
+2. Both standard keys and plugin-specific ones
+3. Configuration fed to plugin on stdin for each operation
+4. Stored on-disk or by the runtime
+
+Execution Flow
+1. Basic commands: ADD, DEL, CHECK and VERSION
+2. Plugins are executables
+3. Spawned by the runtime when network operations are desired
+4. Fed JSON configuration via stdin
+5. Also fed container-specific data via stdin
+6. Report structured result via stdout
+
+Kubernetes의 경우 이제 Kubelet이 CNI plugin을 separate program을 실행하고 이제 JSON configuration이 컨테이너 데이터를 stdin으로 넣고 이제 결과를 stdout으로 response하면 Kubelet이 받아간다.
+
+> The CNI plugin is selected by passing Kubelet the --network-plugin=cni command-line option. Kubelet reads a file from --cni-conf-dir (default /etc/cni/net.d) and uses the CNI configuration from that file to set up each pod’s network. The CNI configuration file must match the CNI specification, and any required CNI plugins referenced by the configuration must be present in --cni-bin-dir (default /opt/cni/bin). 
+[kubernetes document](https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/#cni)
+
+[Kubernetes-the-hard-way-aws](https://github.com/prabhatsharma/kubernetes-the-hard-way-aws/blob/master/docs/09-bootstrapping-kubernetes-workers.md)에서 CNI Networking을 설정하는 것을 보면 kubelet option으로 `--network-plugin=cni` 정의한 것을 확인 할 수 있다. 그리고 `https://github.com/containernetworking/plugins/releases/download/v0.8.5/cni-plugins-linux-amd64-v0.8.5.tgz`를 다운 받아서 `/opt/cni/bin/` 경로에 압축을 풀어서 저장한다. 마지막으로 `/etc/cni/net.d` 경로에 pod network를 어떻게 셋업할 지 configuration 파일들을 정의한다.
+
+```
+cat <<EOF | sudo tee /etc/cni/net.d/10-bridge.conf
+{
+    "cniVersion": "0.3.1",
+    "name": "bridge",
+    "type": "bridge",
+    "bridge": "cnio0",
+    "isGateway": true,
+    "ipMasq": true,
+    "ipam": {
+        "type": "host-local",
+        "ranges": [
+          [{"subnet": "${POD_CIDR}"}]
+        ],
+        "routes": [{"dst": "0.0.0.0/0"}]
+    }
+}
+EOF
+```
+
+```
+cat <<EOF | sudo tee /etc/cni/net.d/99-loopback.conf
+{
+    "cniVersion": "0.3.1",
+    "type": "loopback"
+}
+EOF
+```
+
+🤔 EKS에서는 어떻게 CNI가 셋팅이 될까 궁금해졌다.
+
+일단 aws container-roadmap repo에 올라온 [이슈](https://github.com/aws/containers-roadmap/issues/71#issue-391916330)를 보면 EKS cluster를 생성할 때 자동으로 deamonset으로 AWS VPC CNI Plugin이 깔리게 되는 것 같다.
+
+Deamonset으로 도는 [AWS VPC CNI Plugin의 리포](https://github.com/aws/amazon-vpc-cni-k8s)를 살펴보면 일단 daemonset object의 volume 설정이 다음과 같이 되어 있다.
+
+```
+volumes:
+   - name: cni-bin-dir
+      hostPath:
+      path: /opt/cni/bin
+   - name: cni-net-dir
+      hostPath:
+      path: /etc/cni/net.d
+```
+
+daemonset으로 pod가 뜰 때, `/etc/cni/net.d`에 `10-aws.conflist`를 넣게 된다.
+
+amazon-vpc-cni-k8s/misc/10-aws.conflist
+```
+{
+  "cniVersion": "0.3.1",
+  "name": "aws-cni",
+  "plugins": [
+    {
+      "name": "aws-cni",
+      "type": "aws-cni",
+      "vethPrefix": "__VETHPREFIX__",
+      "mtu": "__MTU__"
+    },
+    {
+      "type": "portmap",
+      "capabilities": {"portMappings": true},
+      "snat": true
+    }
+  ]
+}
+```
+
+[AWS VPC CNI Plugin Proposal](https://github.com/aws/amazon-vpc-cni-k8s/issues/214#issuecomment-493543581)를 보면 L-IPAM daemon이 돌아가는 것을 확인 할 수 있다. 
+
+> The L-IPAM daemon is responsible for attaching elastic network interfaces to instances, assigning secondary IP addresses to elastic network interfaces, and maintaining a "warm pool" of IP addresses on each node for assignment to Kubernetes pods when they are scheduled.
+[EKS document](https://docs.aws.amazon.com/eks/latest/userguide/pod-networking.html)
+
+[AWS VPC CNI Plugin Repo의 이슈](https://github.com/aws/amazon-vpc-cni-k8s/issues/214#issuecomment-493543581)를 보면서 GKE는 Calico CNI Plugin을 사용하는 것을 알 수 있었다. EKS는 AWS VPC CNI Plugin으로 설정되어 있기 때문에 [인스턴스가 가질 수 있는 ENI와 ENI당 할당 가능한 IP 숫자 제한](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html)만큼 pod를 만들 수 있다.
+
+[2020년 2월 14일에 VPC CNI Version 1.6이 릴리즈](https://aws.amazon.com/about-aws/whats-new/2020/02/amazon-eks-announces-release-of-vpc-cni-version-1-6/)되었다고 어나운스가 되었네. VPC CNI에 다양한 Configuration Variable들이 있구나. `WARM_ENI_TARGET`, `WARM_IP_TARGET`, `MINIMUM_IP_TARGET` 등도 있구나. 미리 pod에 할당할 IP를 deadmon으로 돌고 있는 ipam이 미리 확보하고 있을 수도 있구나. 이제 `WARM_IP_TARGET`를 30으로 하고 이제 30개의 pod가 ip를 할당 받으면 이제 30개의 ip를 확보하려고 하겠지. 근데 이렇게 하면 이제 subnet의 할당 가능한 ip를 빠르게 고갈 시킬 수 있으니깐 이제 `MINIMUM_IP_TARGET`가 추가되어서 이제 이 값을 30으로 하고 `WARM_IP_TARGET`를 2로 하면 이제 30개를 확보를 동일하게 하지만 이제 30개가 pod가 deploy되서 할당되고 나면 이제 ipam daemon는 2개만 미리 ip를 확보 해둔다.
 
 ## 7 GCP Kubernetes Best Practices videos
 
