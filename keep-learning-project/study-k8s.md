@@ -18,6 +18,130 @@ I played around with Minikube and EKS to understand Kubernetes. I would like to 
 - [KubeCon 2018 Keynote: Maturing Kubernetes Operators - Rob Szumski](#kubecon-2018-keynote-maturing-kubernetes-operators---rob-szumski)
 - [KubeCon 2018 Kubernetes Design Principles: Understand the Why - Saad Ali, Google](#kubecon-2018-kubernetes-design-principles-understand-the-why---saad-ali-google)
 
+## [KubeCon 2019 Doing Things Prometheus Can’t Do with Prometheus](https://youtu.be/pRmnh8lgjsU)
+
+발표자는 400 prometheus server를 운영! 와우!
+
+High Availability Prometheus
+- Prometheus is not distributed
+- Sometimes the network breaks
+- Sometimes queries make Prometheus sad
+    - 잘못 query를 했다가는 이제 자원을 엄청 쓰고 unresponsive가 될수도
+
+High Availability Prometheus
+- thanos-query, promxy fan out to fill gaps
+- Decreased query performance
+- Big queries fanning out
+- Operational overhead
+
+🤔 이 발표에서도 Prometheus는 이제 ditributed하지 않다고 설명하고, HA를 구성하기 위한 방법과 HA에 의한 downside를 설명한다. 
+
+Cardinality
+
+- Every permutation of labels in Prometheus creates a new time series individual queries should use hundreds not thousands of time series 
+- Queries that generate on thousands of time series will overload Prometheus 
+- Work out your query in the Console before graphing 
+- Avoid high cardinality lables
+
+> avoid labels that have unbounded potential values and what the total number of labels that you put on a metric.
+
+🤔 필요 없이 label를 그냥 생각없이 넣다보면 이제 query할 때 몇 천개의 time series에서 가져와야 할 수도 있구나.
+
+실질적으로 하다보면 몇천 time series를 사용하는 query가 생기는데, 발표자는 several thousands 혹은 10,000 이 되어도 크게 문제가 될 것 같지 않다고 하고, 하지만 10,000이 넘어가면 이제 조치를 취해야 함.
+
+Effective Cardinality - protec
+Leave resource headroom
+--query.max-samples
+--query.max-concurrency
+shard on logical boundaries or federate
+
+Long-term Metrics Storage
+Prometheus 2.8 released disk-backed retention
+storage.tsdb.max-block-duration의 값을 이제 5일 이라고 하면 5일 단위로 이제 compact해서 만드는데 이제 disk storage가 부족해서 지우게 되면 이 block단위로 지우게 된다. 
+
+**Mindful data and vanilla Prometheus could be all you need**
+
+Block storage or a fast disk
+
+Separate "long term" server
+
+🤔 Thanos, Promxy, Cortex등을 사용해야 해서 operation 복잡성과 추가적인 비용을 추가해야할 지 고민해봐야 한다. 그냥 Vanila Promethues로도 충분한지 고민해봐야 한다. Promethues 자체가 이제 robust하고 simple하게 만들어졌다고 하는데, HA없이도 충분히 믿을만 한걸까???
+
+Machine learning on Metrics => PromQL has enough features for you to impress your boss
+
+label ephemeral value => Prometheus has an official Go client library that you can use to instrument Go applications.
+
+## [KubeCon 2019 Prometheus Deep Dive](https://youtu.be/Me-kZi4xkEs)
+
+designed to be distributed
+- minimal dependencies
+  - Local disk
+  - Network
+- Intentionally un-coordinated distributed system
+- Run Prometheus close to your targets
+- Vertical sharding before horizontal sharding
+  - 1000개 pod가 있는데 500개씩 각각 서비스를 구성한다면 Prometheus를 각각 500씩 그룹에 띄워서.
+
+> Prometheus design was came from a need where the monitoring system needed to be the most reliable thing on the network and which meant that the Prometheus itself needed to have the least number of dependencies on anything else on your network so as long as it's up and running it's got a little local disk and it can reach to the network it can monitor it.
+
+### Q. why do I get float values for increase() when my counter goes up by integers?
+
+Prometheus Metric type
+* Counter
+* Gauge
+* Histogram
+* Summary
+
+🤔interpolation을 하는구나. 그리고 scrape도 이제 다른 타이밍에 하더라도 이제 interpolation을 하니깐 상관이 없어지고. 그리고 scape하는데 몇 개 포인트를 못가져와도 이제 전체적으로 정확도가 막 떨어지는게 아니고, total number는 아니깐!
+
+### Q. how much space do I need for Prometheus?
+
+recording rule
+Recording rules allow you to precompute frequently needed or computationally expensive expressions and save their result as a new set of time series. Querying the precomputed result will then often be much faster than executing the original expression every time it is needed. This is especially useful for dashboards, which need to query the same expression repeatedly every time they refresh.
+
+Typical formula: 1.5 bytes per sample per second
+
+여기 발표에서는 1700 target이 있고, taget별 700개의 metric을 수집하고, 그리고 15초 주기로 scape을 하고 일부는 5초로 한다. 그리고 많은 recording rules있다고 가정했을 때, 100,000 samples / second * 1.5 bytes * 60 * 60 = 0.5GB/hour
+
+🤔 100,000은 1700*700/15로 하고 이제 5초 scape도 있고 많은 recording rules도 있으니 100,000으로 잡았겠지?
+
+### Q. how do I deal with multiple instances?
+
+horizontal scaling of the data from multiple prometheus instances
+* Cortex
+* M3DB
+* Thanos
+* Others
+
+🤔 Federation option도 생각해볼 수 있구나.
+
+Hierarchical federation
+
+Hierarchical federation allows Prometheus to scale to environments with tens of data centers and millions of nodes. In this use case, the federation topology resembles a tree, with higher-level Prometheus servers collecting aggregated time series data from a larger number of subordinated servers.
+For example, a setup might consist of many per-datacenter Prometheus servers that collect data in high detail (instance-level drill-down), and a set of global Prometheus servers which collect and store only aggregated data (job-level drill-down) from those local servers. This provides an aggregate global view and detailed local views.
+
+Cross-service federation
+
+In cross-service federation, a Prometheus server of one service is configured to scrape selected data from another service's Prometheus server to enable alerting and queries against both datasets within a single server.
+For example, a cluster scheduler running multiple services might expose resource usage information (like memory and CPU usage) about service instances running on the cluster. On the other hand, a service running on that cluster will only expose application-specific service metrics. Often, these two sets of metrics are scraped by separate Prometheus servers. Using federation, the Prometheus server containing service-level metrics may pull in the cluster resource usage metrics about its specific service from the cluster Prometheus, so that both sets of metrics can be used within that server.
+
+### Q. metric에 많은 label를 설정했을 때 storage에 영향이 있는지? 
+
+prometheus inverted index라서 label를 추가하더라도 추가적으로 많은 storage를 차지하지 않는다. value가 많아지면 이제 scan하는데 더 오래 걸리니깐 label할 때 cardinality를 생각해야겠구나! 
+
+### Q. Thanos나 cortex 사용경험에 물어봤다.
+
+발표자는 Thanos를 쓰기 전에는 이제 점점 커지면서 prometheus server가 늘어나기 시작했고, grafana에서 어떤 data source는 이 prometheus server에서 다른 data source는 다른 prometheus server에서 가져와서 이제 이런 데이터를 mixing하는 것 상당히 귀찮은 작업이었다. 그래서 thanos를 overlay proxy로 query를 편리하게 했다. Prometheus server 에 6개월치의 데이터를 보관하는데 Thanos와 잘 작동했다. 
+
+### Q. Thanos query가 느릴 수가 있는데 cache layer를 쓰는지? 
+
+cortex cache layer가 thanos에 merge 되어서 사용가능하다
+
+### Q. alert manager에서 이제 ops팀에서 쉽게 사용할 수 있게 PromQL처럼 코드로 하는게 아니라 뭔가 integration 할 계획이 있는지? 
+
+GUI grafana에게 요청하고 있다. Prometheus팀에서 할 계획이 없다.
+
+🤔 [Jsonnet library](https://grafana.com/blog/2020/02/26/how-to-configure-grafana-as-code/)로 Grafana도 code로 찍어 낼 수 있나보구나!
 
 ## [KubeCon 2019 Introduction to CNI, the Container Network Interface Project](https://youtu.be/YjjrQiJOyME)
 
