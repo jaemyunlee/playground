@@ -1,4 +1,4 @@
-sanic==0.8.0
+sanic==20.12.6
 aiohttp==3.5.1
 jaeger_client
 opentracing
